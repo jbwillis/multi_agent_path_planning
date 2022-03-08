@@ -17,8 +17,8 @@ agents:
 map:
     dimensions: [4, 5]
     obstacles:
-    - !!python/tuple [1, 0]
-    - !!python/tuple [1, 1]
-    - !!python/tuple [1, 3]
-    - !!python/tuple [1, 4]
+    - !!python/tuple [2, 0]
+    - !!python/tuple [2, 1]
+    - !!python/tuple [2, 3]
+    - !!python/tuple [2, 4]
 
