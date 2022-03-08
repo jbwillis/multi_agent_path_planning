@@ -19,7 +19,8 @@ class Animation:
     self.map = map
     self.schedule = schedule
     self.combined_schedule = {}
-    self.combined_schedule.update(self.schedule["schedule"])
+    if self.schedule["schedule"] is not None:
+      self.combined_schedule.update(self.schedule["schedule"])
 
     aspect = map["map"]["dimensions"][0] / map["map"]["dimensions"][1]
 
@@ -57,16 +58,25 @@ class Animation:
     # draw goals first
     for d, i in zip(map["agents"], range(0, len(map["agents"]))):
       self.patches.append(Rectangle((d["goal"][0] - 0.25, d["goal"][1] - 0.25), 0.5, 0.5, facecolor=Colors[0], edgecolor='black', alpha=0.5))
+      name = d["name"]
+      goal_agent_name = self.ax.text(d["goal"][0], d["goal"][1], name.replace('agent', ''))
+      goal_agent_name.set_horizontalalignment('center')
+      goal_agent_name.set_verticalalignment('center')
+      self.artists.append(goal_agent_name)
     for d, i in zip(map["agents"], range(0, len(map["agents"]))):
       name = d["name"]
       self.agents[name] = Circle((d["start"][0], d["start"][1]), 0.3, facecolor=Colors[0], edgecolor='black')
       self.agents[name].original_face_color = Colors[0]
       self.patches.append(self.agents[name])
-      self.T = max(self.T, schedule["schedule"][name][-1]["t"])
+      if self.schedule["schedule"] is not None:
+        self.T = max(self.T, schedule["schedule"][name][-1]["t"])
       self.agent_names[name] = self.ax.text(d["start"][0], d["start"][1], name.replace('agent', ''))
       self.agent_names[name].set_horizontalalignment('center')
       self.agent_names[name].set_verticalalignment('center')
       self.artists.append(self.agent_names[name])
+
+    if self.schedule["schedule"] is None:
+      self.T = 1000
 
     # self.ax.set_axis_off()
     # self.fig.axes[0].set_visible(False)
@@ -99,6 +109,9 @@ class Animation:
     return self.patches + self.artists
 
   def animate_func(self, i):
+    if self.schedule["schedule"] is None:
+      return self.patches + self.artists
+
     for agent_name, agent in self.combined_schedule.items():
       pos = self.getState(i / 10, agent)
       p = (pos[0], pos[1])
