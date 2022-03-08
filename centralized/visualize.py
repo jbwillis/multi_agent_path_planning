@@ -76,7 +76,7 @@ class Animation:
       self.artists.append(self.agent_names[name])
 
     if self.schedule["schedule"] is None:
-      self.T = 1000
+      self.T = 10
 
     # self.ax.set_axis_off()
     # self.fig.axes[0].set_visible(False)
