@@ -107,59 +107,35 @@ class Environment(object):
         self.constraint_dict = {}
 
         if metric == "distance":
-            self.get_neighbors = self.get_neighbors_distance
-        else:
-            self.get_neighbors = self.get_neighbors_time
-
+            self.get_neighbors = lambda state: self.get_neighbors_weighted(state, 0, 1)
+        elif metric == "mixed":
+            self.get_neighbors = lambda state: self.get_neighbors_weighted(state, 1, 2)
+        else: # default: time
+            self.get_neighbors = lambda state: self.get_neighbors_weighted(state, 1, 1)
 
         self.a_star = AStar(self)
 
-    def get_neighbors_distance(self, state):
+    def get_neighbors_weighted(self, state, wait_weight, move_weight):
         neighbors = []
 
         # Wait action
-        n = State(state.time + 1, state.location, 1) # wait incures no cost
+        n = State(state.time + 1, state.location, wait_weight) # wait incures no cost
         if self.state_valid(n):
             neighbors.append(n) 
         # Up action
-        n = State(state.time + 1, Location(state.location.x, state.location.y+1), 2)
+        n = State(state.time + 1, Location(state.location.x, state.location.y+1), move_weight)
         if self.state_valid(n) and self.transition_valid(state, n):
             neighbors.append(n)
         # Down action
-        n = State(state.time + 1, Location(state.location.x, state.location.y-1), 2)
+        n = State(state.time + 1, Location(state.location.x, state.location.y-1), move_weight)
         if self.state_valid(n) and self.transition_valid(state, n):
             neighbors.append(n)
         # Left action
-        n = State(state.time + 1, Location(state.location.x-1, state.location.y), 2)
+        n = State(state.time + 1, Location(state.location.x-1, state.location.y), move_weight)
         if self.state_valid(n) and self.transition_valid(state, n):
             neighbors.append(n)
         # Right action
-        n = State(state.time + 1, Location(state.location.x+1, state.location.y), 2)
-        if self.state_valid(n) and self.transition_valid(state, n):
-            neighbors.append(n)
-        return neighbors
-
-    def get_neighbors_time(self, state):
-        neighbors = []
-
-        # Wait action
-        n = State(state.time + 1, state.location, 1)
-        if self.state_valid(n):
-            neighbors.append(n) 
-        # Up action
-        n = State(state.time + 1, Location(state.location.x, state.location.y+1), 1)
-        if self.state_valid(n) and self.transition_valid(state, n):
-            neighbors.append(n)
-        # Down action
-        n = State(state.time + 1, Location(state.location.x, state.location.y-1), 1)
-        if self.state_valid(n) and self.transition_valid(state, n):
-            neighbors.append(n)
-        # Left action
-        n = State(state.time + 1, Location(state.location.x-1, state.location.y), 1)
-        if self.state_valid(n) and self.transition_valid(state, n):
-            neighbors.append(n)
-        # Right action
-        n = State(state.time + 1, Location(state.location.x+1, state.location.y), 1)
+        n = State(state.time + 1, Location(state.location.x+1, state.location.y), move_weight)
         if self.state_valid(n) and self.transition_valid(state, n):
             neighbors.append(n)
         return neighbors
@@ -313,6 +289,10 @@ class CBS(object):
             P = min(self.open_set)
             self.open_set -= {P}
             self.closed_set |= {P}
+
+            print("Open set size = ", len(self.open_set))
+            print("Closed set size = ", len(self.closed_set))
+            print()
 
             self.env.constraint_dict = P.constraint_dict
             conflict_dict = self.env.get_first_conflict(P.solution)
