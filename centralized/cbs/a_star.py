@@ -25,8 +25,6 @@ class AStar():
         low level search 
         """
         initial_state = self.agent_dict[agent_name]["start"]
-        step_cost = 1
-        
         closed_set = set()
         open_set = {initial_state}
 
@@ -55,7 +53,9 @@ class AStar():
                 if neighbor in closed_set:
                     continue
                 
-                tentative_g_score = g_score.setdefault(current, float("inf")) + step_cost
+                neighbor_cost = neighbor.cost
+
+                tentative_g_score = g_score.setdefault(current, float("inf")) + neighbor_cost
 
                 if neighbor not in open_set:
                     open_set |= {neighbor}

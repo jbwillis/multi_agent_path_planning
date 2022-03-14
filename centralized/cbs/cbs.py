@@ -25,9 +25,10 @@ class Location(object):
         return str((self.x, self.y))
 
 class State(object):
-    def __init__(self, time, location):
+    def __init__(self, time, location, cost):
         self.time = time
         self.location = location
+        self.cost = cost
     def __eq__(self, other):
         return self.time == other.time and self.location == other.location
     def __hash__(self):
@@ -93,7 +94,7 @@ class Constraints(object):
             "EC: " + str([str(ec) for ec in self.edge_constraints])
 
 class Environment(object):
-    def __init__(self, dimension, agents, obstacles):
+    def __init__(self, dimension, agents, obstacles, metric):
         self.dimension = dimension
         self.obstacles = obstacles
 
@@ -105,29 +106,60 @@ class Environment(object):
         self.constraints = Constraints()
         self.constraint_dict = {}
 
+        if metric == "distance":
+            self.get_neighbors = self.get_neighbors_distance
+        else:
+            self.get_neighbors = self.get_neighbors_time
+
+
         self.a_star = AStar(self)
 
-    def get_neighbors(self, state):
+    def get_neighbors_distance(self, state):
         neighbors = []
 
         # Wait action
-        n = State(state.time + 1, state.location)
+        n = State(state.time + 1, state.location, 1) # wait incures no cost
         if self.state_valid(n):
-            neighbors.append(n)
+            neighbors.append(n) 
         # Up action
-        n = State(state.time + 1, Location(state.location.x, state.location.y+1))
+        n = State(state.time + 1, Location(state.location.x, state.location.y+1), 2)
         if self.state_valid(n) and self.transition_valid(state, n):
             neighbors.append(n)
         # Down action
-        n = State(state.time + 1, Location(state.location.x, state.location.y-1))
+        n = State(state.time + 1, Location(state.location.x, state.location.y-1), 2)
         if self.state_valid(n) and self.transition_valid(state, n):
             neighbors.append(n)
         # Left action
-        n = State(state.time + 1, Location(state.location.x-1, state.location.y))
+        n = State(state.time + 1, Location(state.location.x-1, state.location.y), 2)
         if self.state_valid(n) and self.transition_valid(state, n):
             neighbors.append(n)
         # Right action
-        n = State(state.time + 1, Location(state.location.x+1, state.location.y))
+        n = State(state.time + 1, Location(state.location.x+1, state.location.y), 2)
+        if self.state_valid(n) and self.transition_valid(state, n):
+            neighbors.append(n)
+        return neighbors
+
+    def get_neighbors_time(self, state):
+        neighbors = []
+
+        # Wait action
+        n = State(state.time + 1, state.location, 1)
+        if self.state_valid(n):
+            neighbors.append(n) 
+        # Up action
+        n = State(state.time + 1, Location(state.location.x, state.location.y+1), 1)
+        if self.state_valid(n) and self.transition_valid(state, n):
+            neighbors.append(n)
+        # Down action
+        n = State(state.time + 1, Location(state.location.x, state.location.y-1), 1)
+        if self.state_valid(n) and self.transition_valid(state, n):
+            neighbors.append(n)
+        # Left action
+        n = State(state.time + 1, Location(state.location.x-1, state.location.y), 1)
+        if self.state_valid(n) and self.transition_valid(state, n):
+            neighbors.append(n)
+        # Right action
+        n = State(state.time + 1, Location(state.location.x+1, state.location.y), 1)
         if self.state_valid(n) and self.transition_valid(state, n):
             neighbors.append(n)
         return neighbors
@@ -218,8 +250,8 @@ class Environment(object):
 
     def make_agent_dict(self):
         for agent in self.agents:
-            start_state = State(0, Location(agent['start'][0], agent['start'][1]))
-            goal_state = State(0, Location(agent['goal'][0], agent['goal'][1]))
+            start_state = State(0, Location(agent['start'][0], agent['start'][1]), 1)
+            goal_state = State(0, Location(agent['goal'][0], agent['goal'][1]), 1)
 
             self.agent_dict.update({agent['name']:{'start':start_state, 'goal':goal_state}})
 
@@ -234,7 +266,14 @@ class Environment(object):
         return solution
 
     def compute_solution_cost(self, solution):
-        return sum([len(path) for path in solution.values()])
+        def compute_path_cost(path):
+            path_cost = 0
+            for n in path:
+                path_cost += n.cost
+            return path_cost
+
+        return sum([compute_path_cost(path) for path in solution.values()])
+
 
 class HighLevelNode(object):
     def __init__(self):
@@ -303,15 +342,22 @@ class CBS(object):
     def generate_plan(self, solution):
         plan = {}
         for agent, path in solution.items():
-            path_dict_list = [{'t':state.time, 'x':state.location.x, 'y':state.location.y} for state in path]
+            path_dict_list = [{'t':state.time, 'x':state.location.x, 'y':state.location.y, 'c':state.cost} for state in path]
             plan[agent] = path_dict_list
         return plan
 
+    def compute_plan_cost(self, plan):
+        cost = 0
+        for path_dict_list in plan.values():
+            for n in path_dict_list:
+                cost += n['c']
+        return cost
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("param", help="input file containing map and obstacles")
     parser.add_argument("output", help="output file with the schedule")
+    parser.add_argument("metric", help="`time` or `distance` to indicate which cost metric to use")
     args = parser.parse_args()
 
     # Read from input file
@@ -325,7 +371,7 @@ def main():
     obstacles = param["map"]["obstacles"]
     agents = param['agents']
 
-    env = Environment(dimension, agents, obstacles)
+    env = Environment(dimension, agents, obstacles, args.metric)
 
     # Searching
     cbs = CBS(env)
@@ -342,7 +388,7 @@ def main():
             print(exc)
 
     output["schedule"] = solution
-    output["cost"] = env.compute_solution_cost(solution)
+    output["cost"] = cbs.compute_plan_cost(solution)
     with open(args.output, 'w') as output_yaml:
         yaml.safe_dump(output, output_yaml)
 
