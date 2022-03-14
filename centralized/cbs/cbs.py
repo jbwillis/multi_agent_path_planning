@@ -285,19 +285,17 @@ class CBS(object):
 
         self.open_set |= {start}
 
+        iter_cnt = 0
+
         while self.open_set:
             P = min(self.open_set)
             self.open_set -= {P}
             self.closed_set |= {P}
 
-            print("Open set size = ", len(self.open_set))
-            print("Closed set size = ", len(self.closed_set))
-            print()
-
             self.env.constraint_dict = P.constraint_dict
             conflict_dict = self.env.get_first_conflict(P.solution)
             if not conflict_dict:
-                print("solution found")
+                print(f"solution found after {iter_cnt} iterations")
 
                 return self.generate_plan(P.solution)
 
@@ -316,6 +314,7 @@ class CBS(object):
                 # TODO: ending condition
                 if new_node not in self.closed_set:
                     self.open_set |= {new_node}
+            iter_cnt += 1
 
         return {}
 
